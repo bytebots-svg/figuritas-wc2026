@@ -132,7 +132,10 @@ function loadState() {
 }
 
 function saveState(state) {
-  const STARS_KEY = "bytebots_stars_wc2026";
+  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
+}
+
+const STARS_KEY = "bytebots_stars_wc2026";
 const BADGES_KEY = "bytebots_badges_wc2026";
 
 function loadStars() {
@@ -143,8 +146,6 @@ function loadBadges() {
   try { const r = localStorage.getItem(BADGES_KEY); return r ? JSON.parse(r) : []; } catch { return []; }
 }
 function saveBadges(b) { try { localStorage.setItem(BADGES_KEY, JSON.stringify(b)); } catch {} }
-  try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch {}
-}
 
 // ── LONG PRESS HOOK ──────────────────────────────────────────────────────────
 function useLongPress(onLongPress, onClick, ms = 500) {
