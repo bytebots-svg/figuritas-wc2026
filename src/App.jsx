@@ -1298,9 +1298,11 @@ export default function App() {
       {/* TABS */}
       <div className="tab-bar">
         {[
-          { id: "album",  label: "📖 Álbum" },
-          { id: "stats",  label: "📊 Stats" },
-          { id: "trade",  label: "🔄 Intercambio" },
+          { id: "album",    label: "📖 Álbum" },
+          { id: "stats",    label: "📊 Stats" },
+          { id: "stars",    label: "⭐ Estrellas" },
+          { id: "trade",    label: "🔄 Listas" },
+          { id: "exchange", label: "📍 Cerca" },
         ].map(t => (
           <button key={t.id} className={`tab-btn ${tab === t.id ? "active" : ""}`} onClick={() => setTab(t.id)}>
             {t.label}
