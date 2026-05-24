@@ -276,6 +276,283 @@ function Section({ section, collection, onAdd, onRemove, filter, search }) {
   );
 }
 
+// ── EXCHANGE FINDER ──────────────────────────────────────────────────────────
+function ExchangeFinder({ collection, user, supabase, showToast }) {
+  const [step, setStep] = useState("idle"); // idle | setup | searching | results
+  const [profile, setProfile] = useState({ display_name: "", whatsapp: "", city: "", lat: null, lng: null });
+  const [matches, setMatches] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [savedProfile, setSavedProfile] = useState(null);
+
+  // My missing stickers
+  const myMissing = useMemo(() => {
+    const list = [];
+    SECTIONS.forEach(s => {
+      for (let i = 1; i <= s.count; i++) {
+        const id = `${s.id}-${i}`;
+        if ((collection[id] ?? 0) === 0) list.push(id);
+      }
+    });
+    return list;
+  }, [collection]);
+
+  // My duplicates
+  const myDuplicates = useMemo(() => {
+    const list = [];
+    SECTIONS.forEach(s => {
+      for (let i = 1; i <= s.count; i++) {
+        const id = `${s.id}-${i}`;
+        if ((collection[id] ?? 0) >= 2) list.push(id);
+      }
+    });
+    return list;
+  }, [collection]);
+
+  const getLocation = () => {
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) { reject("GPS no disponible"); return; }
+      navigator.geolocation.getCurrentPosition(
+        pos => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+        () => reject("No se pudo obtener ubicación")
+      );
+    });
+  };
+
+  const getCityFromCoords = async (lat, lng) => {
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lng}&format=json`);
+      const data = await res.json();
+      return data.address?.city || data.address?.town || data.address?.municipality || data.address?.county || "Mi ciudad";
+    } catch { return "Mi ciudad"; }
+  };
+
+  const handleSetupStart = async () => {
+    setLoading(true);
+    try {
+      const { lat, lng } = await getLocation();
+      const city = await getCityFromCoords(lat, lng);
+      setProfile(prev => ({ ...prev, lat, lng, city }));
+      setStep("setup");
+    } catch (e) {
+      showToast("Activa el GPS e intenta de nuevo", "warn");
+    }
+    setLoading(false);
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile.display_name.trim() || !profile.whatsapp.trim()) {
+      showToast("Completa tu nombre y WhatsApp", "warn");
+      return;
+    }
+    if (!user || !supabase) { showToast("Inicia sesión para buscar intercambios", "warn"); return; }
+    setLoading(true);
+    try {
+      // Save profile
+      await supabase.from("exchange_profiles").upsert({
+        user_id: user.id,
+        display_name: profile.display_name.trim(),
+        whatsapp: profile.whatsapp.trim().replace(/\D/g, ""),
+        city: profile.city,
+        lat: profile.lat,
+        lng: profile.lng,
+      }, { onConflict: "user_id" });
+
+      // Save my duplicates to stickers table
+      const entries = myDuplicates.map(code => ({ user_id: user.id, sticker_code: code, count: collection[code] }));
+      if (entries.length > 0) {
+        await supabase.from("stickers").upsert(entries, { onConflict: "user_id,sticker_code" });
+      }
+
+      setSavedProfile(profile);
+      await handleSearch(profile);
+    } catch(e) {
+      showToast("Error al guardar perfil", "warn");
+    }
+    setLoading(false);
+  };
+
+  const handleSearch = async (prof) => {
+    if (!supabase) return;
+    setLoading(true);
+    setStep("results");
+    try {
+      // Get all profiles in same city (excluding self)
+      const { data: profiles } = await supabase
+        .from("exchange_profiles")
+        .select("user_id, display_name, whatsapp, city")
+        .eq("city", (prof || profile).city)
+        .neq("user_id", user?.id || "");
+
+      if (!profiles || profiles.length === 0) {
+        setMatches([]);
+        setLoading(false);
+        return;
+      }
+
+      // Get their stickers
+      const userIds = profiles.map(p => p.user_id);
+      const { data: theirStickers } = await supabase
+        .from("stickers")
+        .select("user_id, sticker_code, count")
+        .in("user_id", userIds)
+        .gte("count", 2); // they have duplicates
+
+      // Match: their duplicates vs my missing
+      const results = profiles.map(p => {
+        const theirDups = (theirStickers || [])
+          .filter(s => s.user_id === p.user_id)
+          .map(s => s.sticker_code);
+        const canGiveMe = theirDups.filter(s => myMissing.includes(s));
+        const iNeedFromThem = myDuplicates.filter(s => {
+          const theirMissing = (theirStickers || []).filter(s2 => s2.user_id === p.user_id && s2.count === 0).map(s2 => s2.sticker_code);
+          return theirMissing.includes(s);
+        });
+        return { ...p, canGiveMe, matchCount: canGiveMe.length };
+      }).filter(p => p.matchCount > 0)
+        .sort((a, b) => b.matchCount - a.matchCount);
+
+      setMatches(results);
+    } catch(e) {
+      showToast("Error buscando intercambios", "warn");
+    }
+    setLoading(false);
+  };
+
+  const openWhatsApp = (whatsapp, name, stickers) => {
+    const nums = stickers.slice(0, 5).join(", ");
+    const more = stickers.length > 5 ? ` y ${stickers.length - 5} más` : "";
+    const text = encodeURIComponent(
+      `¡Hola ${name}! 👋 Vi que tienes repetidas que me faltan en el álbum WC 2026: ${nums}${more} ¿Las cambiamos? 🤝
+
+🤖 App by ByteBots · bytebots-figuritas-wc2026.vercel.app`
+    );
+    window.open(`https://wa.me/${whatsapp}?text=${text}`, "_blank");
+  };
+
+  // IDLE STATE
+  if (step === "idle") return (
+    <div className="exchange-finder">
+      <div className="ef-hero">
+        <div className="ef-icon">📍</div>
+        <div className="ef-title">Encuentra intercambios<br/>cerca de ti</div>
+        <div className="ef-sub">Detectamos tu ciudad automáticamente y buscamos usuarios con las figuritas que te faltan</div>
+        <div className="ef-stats">
+          <div className="ef-stat"><span className="ef-num" style={{color:"var(--red)"}}>{myMissing.length}</span><span className="ef-lbl">Me faltan</span></div>
+          <div className="ef-stat-div"></div>
+          <div className="ef-stat"><span className="ef-num" style={{color:"var(--gold)"}}>{myDuplicates.length}</span><span className="ef-lbl">Repetidas</span></div>
+        </div>
+        {!user && (
+          <div className="ef-warning">⚠️ Necesitas iniciar sesión con Google para buscar intercambios</div>
+        )}
+        <button
+          className="ef-btn-primary"
+          onClick={handleSetupStart}
+          disabled={loading || !user}
+        >
+          {loading ? "Detectando ubicación..." : "📍 Buscar en mi ciudad"}
+        </button>
+      </div>
+    </div>
+  );
+
+  // SETUP STATE
+  if (step === "setup") return (
+    <div className="exchange-finder">
+      <div className="ef-card">
+        <div className="ef-card-title">Tu perfil de intercambio</div>
+        <div className="ef-city-detected">
+          <span>📍</span>
+          <span style={{color:"var(--cyan)",fontWeight:"700"}}>{profile.city}</span>
+          <span style={{color:"var(--muted)",fontSize:"11px"}}>detectada</span>
+        </div>
+        <div className="ef-field">
+          <label className="ef-label">Tu nombre o apodo</label>
+          <input
+            className="ef-input"
+            placeholder="Ej: Ricardo C."
+            value={profile.display_name}
+            onChange={e => setProfile(p => ({...p, display_name: e.target.value}))}
+            maxLength={30}
+          />
+        </div>
+        <div className="ef-field">
+          <label className="ef-label">Tu WhatsApp (con código de país)</label>
+          <input
+            className="ef-input"
+            placeholder="Ej: 573001234567"
+            value={profile.whatsapp}
+            onChange={e => setProfile(p => ({...p, whatsapp: e.target.value}))}
+            type="tel"
+            maxLength={15}
+          />
+          <div className="ef-hint">Colombia: 57 · México: 52 · Argentina: 54</div>
+        </div>
+        <div className="ef-privacy">🔒 Tu WhatsApp solo se comparte cuando alguien quiere intercambiar contigo</div>
+        <button className="ef-btn-primary" onClick={handleSaveProfile} disabled={loading}>
+          {loading ? "Buscando..." : "🔍 Buscar intercambios"}
+        </button>
+        <button className="ef-btn-secondary" onClick={() => setStep("idle")}>Cancelar</button>
+      </div>
+    </div>
+  );
+
+  // RESULTS STATE
+  return (
+    <div className="exchange-finder">
+      <div className="ef-results-header">
+        <div className="ef-city-pill">📍 {(savedProfile || profile).city}</div>
+        <button className="ef-refresh" onClick={() => handleSearch(savedProfile || profile)}>↻ Actualizar</button>
+      </div>
+
+      {loading ? (
+        <div className="ef-loading">
+          <div className="ef-loading-icon">🔍</div>
+          <div>Buscando intercambios cerca...</div>
+        </div>
+      ) : matches.length === 0 ? (
+        <div className="ef-empty">
+          <div style={{fontSize:"40px",marginBottom:"12px"}}>😔</div>
+          <div style={{fontWeight:"700",marginBottom:"8px"}}>Sin coincidencias aún</div>
+          <div style={{fontSize:"12px",color:"var(--muted)"}}>
+            Comparte la app con amigos de {(savedProfile || profile).city} para que aparezcan aquí
+          </div>
+          <button className="ef-btn-share" onClick={() => {
+            const text = `¡Busco intercambios del álbum Panini WC 2026! Usa esta app gratis para conectarnos 🤖⚽
+https://bytebots-figuritas-wc2026.vercel.app`;
+            navigator.share ? navigator.share({text}) : navigator.clipboard.writeText(text).then(() => showToast("¡Link copiado!"));
+          }}>📲 Invitar amigos a la app</button>
+        </div>
+      ) : (
+        <>
+          <div className="ef-results-title">{matches.length} persona{matches.length > 1 ? "s" : ""} con figuritas que te faltan</div>
+          <div className="ef-matches">
+            {matches.map(m => (
+              <div key={m.user_id} className="ef-match-card">
+                <div className="ef-match-avatar">{m.display_name[0].toUpperCase()}</div>
+                <div className="ef-match-info">
+                  <div className="ef-match-name">{m.display_name}</div>
+                  <div className="ef-match-stickers">
+                    Tiene {m.matchCount} que necesitas:
+                    {" "}{m.canGiveMe.slice(0, 4).join(", ")}{m.canGiveMe.length > 4 ? ` +${m.canGiveMe.length - 4}` : ""}
+                  </div>
+                </div>
+                <button
+                  className="ef-whatsapp-btn"
+                  onClick={() => openWhatsApp(m.whatsapp, m.display_name, m.canGiveMe)}
+                >
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="white">
+                    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
 // ── MAIN APP ─────────────────────────────────────────────────────────────────
 // ── CONFETTI ─────────────────────────────────────────────────────────────────
 function Confetti() {
@@ -925,6 +1202,48 @@ export default function App() {
         .sync-cta{background:#D81B7D;color:#fff;border:none;border-radius:6px;font-family:var(--font);font-size:10px;font-weight:800;padding:4px 10px;cursor:pointer;white-space:nowrap}
         .banner-close{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;margin-left:auto}
         .donut-wrap{display:flex;justify-content:center;margin-bottom:12px}
+        .exchange-finder{padding:14px;display:flex;flex-direction:column;gap:12px}
+        .ef-hero{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:28px 20px;text-align:center;display:flex;flex-direction:column;align-items:center;gap:14px}
+        .ef-icon{font-size:48px}
+        .ef-title{font-size:20px;font-weight:800;color:var(--text);line-height:1.2;font-family:'Montserrat',sans-serif}
+        .ef-sub{font-size:13px;color:var(--muted);line-height:1.6;max-width:300px}
+        .ef-stats{display:flex;align-items:center;gap:20px;margin:4px 0}
+        .ef-stat{display:flex;flex-direction:column;align-items:center;gap:2px}
+        .ef-num{font-size:28px;font-weight:800;font-family:var(--mono);line-height:1}
+        .ef-lbl{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:1px;font-weight:700}
+        .ef-stat-div{width:1px;height:40px;background:var(--border)}
+        .ef-warning{background:rgba(255,212,0,0.08);border:1px solid rgba(255,212,0,0.2);border-radius:10px;padding:10px 14px;font-size:12px;color:var(--gold);width:100%}
+        .ef-btn-primary{width:100%;background:#D81B7D;color:#fff;border:none;border-radius:12px;font-family:'Montserrat',sans-serif;font-weight:800;font-size:15px;padding:16px;cursor:pointer;transition:opacity 0.15s}
+        .ef-btn-primary:disabled{opacity:0.5;cursor:not-allowed}
+        .ef-btn-primary:hover:not(:disabled){opacity:0.88}
+        .ef-btn-secondary{width:100%;background:none;border:1px solid var(--border);color:var(--muted);border-radius:12px;font-family:var(--font);font-size:13px;font-weight:600;padding:12px;cursor:pointer}
+        .ef-card{background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px;display:flex;flex-direction:column;gap:14px}
+        .ef-card-title{font-size:15px;font-weight:800;color:var(--text);font-family:'Montserrat',sans-serif}
+        .ef-city-detected{display:flex;align-items:center;gap:8px;background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.15);border-radius:10px;padding:10px 14px;font-size:13px}
+        .ef-field{display:flex;flex-direction:column;gap:6px}
+        .ef-label{font-size:11px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+        .ef-input{background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:var(--font);font-size:14px;padding:12px 14px;outline:none;transition:border-color 0.15s}
+        .ef-input:focus{border-color:var(--cyan)}
+        .ef-hint{font-size:10px;color:var(--muted)}
+        .ef-privacy{font-size:11px;color:var(--muted);background:var(--surface2);border-radius:8px;padding:8px 12px;line-height:1.5}
+        .ef-results-header{display:flex;justify-content:space-between;align-items:center}
+        .ef-city-pill{background:var(--surface);border:1px solid var(--border);border-radius:20px;padding:6px 14px;font-size:12px;font-weight:700;color:var(--text)}
+        .ef-refresh{background:none;border:1px solid var(--border);color:var(--muted);border-radius:8px;font-size:12px;padding:6px 12px;cursor:pointer;font-family:var(--font);font-weight:600}
+        .ef-results-title{font-size:13px;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:0.5px;font-family:var(--mono)}
+        .ef-matches{display:flex;flex-direction:column;gap:8px}
+        .ef-match-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;align-items:center;gap:12px;transition:border-color 0.15s}
+        .ef-match-card:hover{border-color:rgba(0,229,255,0.2)}
+        .ef-match-avatar{width:44px;height:44px;border-radius:50%;background:linear-gradient(135deg,#D81B7D,#1D3567);display:flex;align-items:center;justify-content:center;font-size:18px;font-weight:800;color:#fff;font-family:'Montserrat',sans-serif;flex-shrink:0}
+        .ef-match-info{flex:1;min-width:0}
+        .ef-match-name{font-size:14px;font-weight:700;color:var(--text)}
+        .ef-match-stickers{font-size:11px;color:var(--muted);margin-top:2px;font-family:var(--mono);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+        .ef-whatsapp-btn{background:#25D366;border:none;border-radius:10px;width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;flex-shrink:0;transition:opacity 0.15s}
+        .ef-whatsapp-btn:hover{opacity:0.85}
+        .ef-loading{text-align:center;padding:40px;color:var(--muted);font-size:14px;display:flex;flex-direction:column;align-items:center;gap:12px}
+        .ef-loading-icon{font-size:36px;animation:spin 2s linear infinite}
+        @keyframes spin{to{transform:rotate(360deg)}}
+        .ef-empty{text-align:center;padding:32px 20px;color:var(--muted);font-size:13px;display:flex;flex-direction:column;align-items:center;gap:8px}
+        .ef-btn-share{background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;font-family:var(--font);font-size:13px;font-weight:700;padding:12px 20px;cursor:pointer;margin-top:8px}
         .donut-svg{width:130px;height:130px}
         .stats-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
         .sum-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:10px;padding:10px}
@@ -1240,6 +1559,15 @@ export default function App() {
       )}
 
       {/* TOAST */}
+      {tab === "exchange" && (
+        <ExchangeFinder
+          collection={collection}
+          user={user}
+          supabase={supabase}
+          showToast={showToast}
+        />
+      )}
+
       {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
 
       {/* WELCOME MODAL */}
