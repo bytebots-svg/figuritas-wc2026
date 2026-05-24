@@ -1540,7 +1540,7 @@ export default function App() {
 
           {/* FOOTER BYTEBOTS */}
           <div className="bytebots-footer">
-            Desarrollado por <span>ByteBots</span> · bytebots.com.co<br/>
+            Desarrollado por <span>ByteBots</span> · bytebots.com.co · <a href="/privacy.html" style={{color:"rgba(242,244,247,0.25)",textDecoration:"none"}}>Privacidad</a><br/>
             <span style={{fontSize:"9px",color:"var(--muted)"}}>Academia de IA, Robótica y Programación · Colombia 🇨🇴</span>
           </div>
 
@@ -1581,7 +1581,7 @@ export default function App() {
               </div>
             ))}
           </div>
-          <div className="bytebots-footer">Desarrollado con ❤️ por <span>ByteBots</span> · bytebots.com.co · Cartagena</div>
+          <div className="bytebots-footer">Desarrollado con ❤️ por <span>ByteBots</span> · bytebots.com.co · Cartagena · <a href="/privacy.html" style={{color:"rgba(242,244,247,0.25)",textDecoration:"none"}}>Privacidad</a></div>
         </div>
       )}
 
