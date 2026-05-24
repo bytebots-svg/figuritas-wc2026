@@ -440,6 +440,14 @@ export default function App() {
   const [user, setUser]             = useState(null);
   const [syncing, setSyncing]       = useState(false);
   const [showBanner, setShowBanner] = useState(true);
+  const [showWelcome, setShowWelcome] = useState(() => {
+    try { return !localStorage.getItem("bytebots_welcomed"); } catch { return true; }
+  });
+
+  const closeWelcome = () => {
+    try { localStorage.setItem("bytebots_welcomed", "1"); } catch {}
+    setShowWelcome(false);
+  };
 
   // Auth listener
   useEffect(() => {
@@ -1233,6 +1241,88 @@ export default function App() {
 
       {/* TOAST */}
       {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
+
+      {/* WELCOME MODAL */}
+      {showWelcome && (
+        <div style={{
+          position:"fixed",inset:0,background:"rgba(0,0,0,0.85)",
+          zIndex:9999,display:"flex",alignItems:"center",justifyContent:"center",
+          padding:"20px",backdropFilter:"blur(8px)"
+        }}>
+          <div style={{
+            background:"linear-gradient(135deg,#1D3567,#111318)",
+            border:"2px solid #D81B7D",
+            borderRadius:"24px",
+            padding:"36px 32px",
+            maxWidth:"400px",
+            width:"100%",
+            textAlign:"center",
+            boxShadow:"0 0 60px rgba(216,27,125,0.25)"
+          }}>
+            {/* Logo */}
+            <div style={{
+              width:"64px",height:"64px",background:"#D81B7D",
+              borderRadius:"16px",display:"flex",alignItems:"center",
+              justifyContent:"center",margin:"0 auto 16px",
+              boxShadow:"0 4px 20px rgba(216,27,125,0.5)"
+            }}>
+              <span style={{fontSize:"28px"}}>⚽</span>
+            </div>
+
+            <div style={{fontFamily:"'Montserrat',sans-serif",fontWeight:"900",fontSize:"22px",marginBottom:"4px"}}>
+              <span style={{color:"#D81B7D"}}>Byte</span>
+              <span style={{color:"#F2F4F7"}}>Bots</span>
+              <span style={{color:"rgba(242,244,247,0.5)",fontSize:"16px",fontWeight:"700"}}> Figuritas</span>
+            </div>
+
+            <div style={{fontSize:"11px",color:"rgba(242,244,247,0.35)",fontFamily:"var(--mono)",letterSpacing:"1px",marginBottom:"24px"}}>
+              MUNDIAL 2026 · 48 SELECCIONES
+            </div>
+
+            <div style={{fontSize:"14px",color:"rgba(242,244,247,0.7)",lineHeight:"1.7",marginBottom:"28px",fontFamily:"var(--font)"}}>
+              Lleva el control de tu álbum Panini fácil y gratis 🏆
+            </div>
+
+            {/* Instructions */}
+            <div style={{display:"flex",flexDirection:"column",gap:"10px",marginBottom:"28px",textAlign:"left"}}>
+              {[
+                {icon:"👆", text:"Toca una figurita para marcarla"},
+                {icon:"👆👆", text:"Toca de nuevo para marcarla como repetida"},
+                {icon:"✋", text:"Mantén presionado para quitar una"},
+                {icon:"🔄", text:"Comparte tus repetidas por WhatsApp"},
+              ].map((item, i) => (
+                <div key={i} style={{
+                  display:"flex",alignItems:"center",gap:"12px",
+                  background:"rgba(255,255,255,0.04)",
+                  borderRadius:"10px",padding:"10px 14px",
+                  border:"1px solid rgba(255,255,255,0.06)"
+                }}>
+                  <span style={{fontSize:"18px",flexShrink:0}}>{item.icon}</span>
+                  <span style={{fontSize:"13px",color:"rgba(242,244,247,0.7)"}}>{item.text}</span>
+                </div>
+              ))}
+            </div>
+
+            <button
+              onClick={closeWelcome}
+              style={{
+                width:"100%",background:"#D81B7D",color:"#fff",
+                border:"none",borderRadius:"14px",
+                fontFamily:"'Montserrat',sans-serif",fontWeight:"900",
+                fontSize:"16px",padding:"16px",cursor:"pointer",
+                boxShadow:"0 4px 20px rgba(216,27,125,0.4)",
+                letterSpacing:"0.5px"
+              }}
+            >
+              ¡Empezar a coleccionar! ⚽
+            </button>
+
+            <div style={{fontSize:"11px",color:"rgba(242,244,247,0.25)",marginTop:"14px",fontFamily:"var(--mono)"}}>
+              bytebots.com.co · Cartagena, Colombia 🇨🇴
+            </div>
+          </div>
+        </div>
+      )}
       {showConfetti && <Confetti />}
       {newAchievement && <AchievementPopup achievement={newAchievement} onClose={() => setNewAchievement(null)} />}
     </>
