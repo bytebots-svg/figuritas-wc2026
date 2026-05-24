@@ -154,13 +154,15 @@ function loadBadges() {
 function saveBadges(b) { try { localStorage.setItem(BADGES_KEY, JSON.stringify(b)); } catch {} }
 
 // ── LONG PRESS HOOK ──────────────────────────────────────────────────────────
-function useLongPress(onLongPress, onClick, ms = 500) {
+function useLongPress(onLongPress, onClick, ms = 900) {
   const timerRef = useRef(null);
   const firedRef = useRef(false);
+  const startTimeRef = useRef(0);
 
   const start = useCallback((e) => {
     e.preventDefault();
     firedRef.current = false;
+    startTimeRef.current = Date.now();
     timerRef.current = setTimeout(() => {
       firedRef.current = true;
       onLongPress();
@@ -173,7 +175,9 @@ function useLongPress(onLongPress, onClick, ms = 500) {
 
   const end = useCallback(() => {
     clearTimeout(timerRef.current);
-    if (!firedRef.current) onClick();
+    const elapsed = Date.now() - startTimeRef.current;
+    // Solo registra tap si el toque fue corto (menos de 300ms) — evita doble registro
+    if (!firedRef.current && elapsed < 300) onClick();
   }, [onClick]);
 
   return {
@@ -193,7 +197,7 @@ function StickerCard({ id, value, onAdd, onRemove }) {
   const handlers = useLongPress(
     () => onRemove(id),   // long press → restar
     () => onAdd(id),      // tap → sumar
-    500
+    900
   );
 
   const tip = value === 0
