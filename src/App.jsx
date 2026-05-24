@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 
 // ── 48 SELECCIONES + SECCIONES ESPECIALES (FIFA World Cup 2026) ──────────────
 // Fuente: FIFA.com — clasificados oficiales al corte de mayo 2026
