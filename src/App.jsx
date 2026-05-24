@@ -1,4 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
+import { createClient } from "@supabase/supabase-js";
+
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
+const supabase = SUPABASE_URL ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
 
 // ── 48 SELECCIONES + SECCIONES ESPECIALES (FIFA World Cup 2026) ──────────────
 // Fuente: FIFA.com — clasificados oficiales al corte de mayo 2026
@@ -420,10 +425,77 @@ export default function App() {
   const [badges, setBadges]         = useState(loadBadges);
   const [showConfetti, setShowConfetti] = useState(false);
   const [newAchievement, setNewAchievement] = useState(null);
+  const [user, setUser]             = useState(null);
+  const [syncing, setSyncing]       = useState(false);
+  const [showBanner, setShowBanner] = useState(true);
+
+  // Auth listener
+  useEffect(() => {
+    if (!supabase) return;
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setUser(session?.user ?? null);
+      if (session?.user) syncFromCloud(session.user.id);
+    });
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+      setUser(session?.user ?? null);
+      if (session?.user) syncFromCloud(session.user.id);
+    });
+    return () => subscription.unsubscribe();
+  }, []);
+
+  // Sync local → cloud on collection change (debounced)
+  const syncTimeout = useRef(null);
+  useEffect(() => {
+    if (!user || !supabase) return;
+    clearTimeout(syncTimeout.current);
+    syncTimeout.current = setTimeout(() => syncToCloud(user.id), 3000);
+  }, [collection, user]);
 
   useEffect(() => { saveState(collection); }, [collection]);
   useEffect(() => { saveStars(stars); }, [stars]);
   useEffect(() => { saveBadges(badges); }, [badges]);
+
+  // ── SYNC FUNCTIONS ──────────────────────────────────────────────────────────
+  const syncToCloud = async (userId) => {
+    if (!supabase) return;
+    setSyncing(true);
+    const entries = Object.entries(collection)
+      .filter(([, v]) => v > 0)
+      .map(([sticker_code, count]) => ({ user_id: userId, sticker_code, count }));
+    if (entries.length > 0) {
+      await supabase.from("stickers").upsert(entries, { onConflict: "user_id,sticker_code" });
+    }
+    setSyncing(false);
+  };
+
+  const syncFromCloud = async (userId) => {
+    if (!supabase) return;
+    setSyncing(true);
+    const { data } = await supabase.from("stickers").select("sticker_code,count").eq("user_id", userId);
+    if (data && data.length > 0) {
+      const fresh = buildInitialState();
+      data.forEach(({ sticker_code, count }) => { if (fresh[sticker_code] !== undefined) fresh[sticker_code] = count; });
+      setCollection(fresh);
+      saveState(fresh);
+      showToast("✅ Datos sincronizados desde la nube");
+    }
+    setSyncing(false);
+  };
+
+  const loginWithGoogle = async () => {
+    if (!supabase) return;
+    await supabase.auth.signInWithOAuth({
+      provider: "google",
+      options: { redirectTo: window.location.href }
+    });
+  };
+
+  const logout = async () => {
+    if (!supabase) return;
+    await supabase.auth.signOut();
+    setUser(null);
+    showToast("Sesión cerrada");
+  };
 
   const showToast = (msg, type = "ok") => {
     setToast({ msg, type });
@@ -521,7 +593,7 @@ export default function App() {
   return (
     <>
       <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800;900&family=Roboto:wght@400;500&family=JetBrains+Mono:wght@400;600&display=swap');
 
         *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -553,9 +625,8 @@ export default function App() {
         /* ── HEADER ── */
         .app-header {
           position: sticky; top: 0; z-index: 100;
-          background: rgba(8,9,12,0.94);
-          backdrop-filter: blur(16px);
-          border-bottom: 1px solid var(--border);
+          background: linear-gradient(135deg, #1D3567, #152547);
+          border-bottom: 2px solid #D81B7D;
           padding: 12px 16px;
         }
         .header-top {
@@ -565,12 +636,15 @@ export default function App() {
         .brand { display: flex; align-items: center; gap: 10px; }
         .brand-logo {
           width: 34px; height: 34px;
-          background: linear-gradient(135deg, var(--cyan), #0080A0);
-          border-radius: 8px; display: flex; align-items: center; justify-content: center;
-          font-size: 17px; flex-shrink: 0;
+          background: #D81B7D;
+          border-radius: 10px; display: flex; align-items: center; justify-content: center;
+          flex-shrink: 0; box-shadow: 0 2px 12px rgba(216,27,125,0.4);
         }
-        .brand-title { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; }
-        .brand-sub { font-size: 9px; color: var(--muted); font-family: var(--mono); letter-spacing: 0.5px; }
+        .brand-title { font-size: 14px; font-weight: 800; letter-spacing: -0.3px; font-family: 'Montserrat', sans-serif; }
+        .brand-byte { color: #D81B7D; }
+        .brand-bots { color: #F2F4F7; }
+        .brand-app  { color: rgba(242,244,247,0.55); font-size: 12px; font-weight: 700; }
+        .brand-sub { font-size: 9px; color: rgba(242,244,247,0.4); font-family: var(--mono); letter-spacing: 0.5px; }
         .global-stats { display: flex; gap: 5px; flex-wrap: wrap; }
         .stat-pill {
           background: var(--surface2); border: 1px solid var(--border);
@@ -583,14 +657,14 @@ export default function App() {
         .num-gold { color: var(--gold); }
 
         .global-progress { display: flex; align-items: center; gap: 10px; }
-        .global-pct { font-size: 11px; font-family: var(--mono); color: var(--cyan); min-width: 34px; }
+        .global-pct { font-size: 11px; font-family: var(--mono); color: #F2F4F7; min-width: 34px; }
         .progress-track { flex: 1; height: 3px; background: var(--surface2); border-radius: 2px; overflow: hidden; }
         .progress-fill  { height: 100%; border-radius: 2px; transition: width 0.35s ease; }
 
         /* ── TABS ── */
         .tab-bar {
           display: flex; gap: 2px; padding: 10px 14px 0;
-          border-bottom: 1px solid var(--border); background: var(--bg);
+          border-bottom: 1px solid var(--border); background: #0f1520;
         }
         .tab-btn {
           background: none; border: none; color: var(--muted);
@@ -598,7 +672,7 @@ export default function App() {
           padding: 7px 14px; border-bottom: 2px solid transparent;
           cursor: pointer; transition: all 0.15s; letter-spacing: 0.2px;
         }
-        .tab-btn.active { color: var(--cyan); border-bottom-color: var(--cyan); }
+        .tab-btn.active { color: #D81B7D; border-bottom-color: #D81B7D; }
 
         /* ── FILTER BAR ── */
         .filter-bar {
@@ -827,6 +901,9 @@ export default function App() {
         .star-check{font-size:18px;color:var(--muted);font-weight:700;min-width:24px;text-align:center}
         .star-check.checked{color:var(--cyan)}
         .rare-badge{background:linear-gradient(90deg,#FFD700,#FF8C00);color:#000;font-size:7px;font-weight:800;padding:1px 4px;border-radius:4px;margin-left:4px;vertical-align:middle}
+        .sync-banner{display:flex;align-items:center;gap:8px;background:rgba(255,212,0,0.08);border-bottom:1px solid rgba(255,212,0,0.2);padding:8px 14px;font-size:11px;color:var(--text);flex-wrap:wrap}
+        .sync-cta{background:#D81B7D;color:#fff;border:none;border-radius:6px;font-family:var(--font);font-size:10px;font-weight:800;padding:4px 10px;cursor:pointer;white-space:nowrap}
+        .banner-close{background:none;border:none;color:var(--muted);font-size:12px;cursor:pointer;padding:0 4px;margin-left:auto}
         .donut-wrap{display:flex;justify-content:center;margin-bottom:12px}
         .donut-svg{width:130px;height:130px}
         .stats-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
@@ -854,14 +931,21 @@ export default function App() {
               </svg>
             </div>
             <div>
-              <div className="brand-title">Figuritas WC 2026</div>
-              <div className="brand-sub">48 SELECCIONES · USA · MEX · CAN</div>
+              <div className="brand-title"><span className="brand-byte">Byte</span><span className="brand-bots">Bots</span> <span className="brand-app">Figuritas</span></div>
+              <div className="brand-sub">WC 2026 · 48 SELECCIONES · CARTAGENA</div>
             </div>
           </div>
           <div className="global-stats">
             <div className="stat-pill"><span className="num num-cyan">{totalOwned}</span> / {totalStickers}</div>
             <div className="stat-pill"><span className="num num-red">{totalMissing}</span> faltan</div>
-            <div className="stat-pill"><span className="num num-gold">{totalDuplicates}</span> rep.</div>
+            {user
+              ? <div className="stat-pill" style={{cursor:"pointer",borderColor:"rgba(0,229,255,0.3)"}} onClick={logout} title="Cerrar sesión">
+                  <span style={{color:"var(--cyan)"}}>☁️</span> {syncing ? "⟳" : "✓"}
+                </div>
+              : <div className="stat-pill" style={{cursor:"pointer",borderColor:"rgba(255,212,0,0.3)",color:"var(--gold)"}} onClick={loginWithGoogle}>
+                  🔑 Guardar
+                </div>
+            }
           </div>
         </div>
         <div className="global-progress">
@@ -888,6 +972,13 @@ export default function App() {
       {/* ALBUM TAB */}
       {tab === "album" && (
         <>
+          {!user && showBanner && (
+            <div className="sync-banner">
+              <span>⚠️ Tus datos están solo en este navegador.</span>
+              <button className="sync-cta" onClick={loginWithGoogle}>Guardar con Google</button>
+              <button className="banner-close" onClick={() => setShowBanner(false)}>✕</button>
+            </div>
+          )}
           <div className="filter-bar">
             {[
               { id: "all",       label: "Todas" },
@@ -1069,7 +1160,7 @@ export default function App() {
               </div>
             ))}
           </div>
-          <div className="bytebots-footer">Desarrollado por <span>ByteBots</span> · bytebots.com.co 🤖</div>
+          <div className="bytebots-footer">Desarrollado con ❤️ por <span>ByteBots</span> · bytebots.com.co · Cartagena</div>
         </div>
       )}
 
