@@ -556,6 +556,43 @@ export default function App() {
           pointer-events: none;
         }
         .toast.ok   { background: var(--cyan);  color: #000; }
+
+        /* ── BYTEBOTS BRAND ── */
+        .bb-brand-header{background:linear-gradient(135deg,var(--surface2),rgba(0,229,255,0.05));border:1px solid rgba(0,229,255,0.15);border-radius:12px;padding:12px 14px;display:flex;justify-content:space-between;align-items:center}
+        .bb-brand-inner{display:flex;align-items:center;gap:10px}
+        .bb-brand-name{font-size:15px;font-weight:800;color:var(--cyan);letter-spacing:-0.3px}
+        .bb-brand-tag{font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+        .bb-brand-url{font-size:9px;color:var(--cyan-dim);font-family:var(--mono);opacity:0.7}
+
+        /* ── HERO CIRCULAR ── */
+        .stats-hero{display:flex;flex-direction:column;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:20px}
+        .hero-circle-wrap{position:relative;width:130px;height:130px;display:flex;align-items:center;justify-content:center}
+        .hero-circle-center{position:absolute;text-align:center}
+        .hero-pct{font-size:32px;font-weight:800;color:var(--cyan);line-height:1;letter-spacing:-1px}
+        .hero-pct-label{font-size:10px;color:var(--muted);font-family:var(--mono)}
+        .hero-meta{text-align:center}
+        .hero-meta-title{font-size:13px;font-weight:700}
+        .hero-meta-sub{font-size:11px;color:var(--muted);font-family:var(--mono);margin-top:2px}
+
+        /* ── MÉTRICAS ── */
+        .stats-grid-2x2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+        .metric-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:14px;display:flex;flex-direction:column;gap:4px;position:relative;overflow:hidden}
+        .metric-card::before{content:"";position:absolute;top:0;left:0;right:0;height:2px}
+        .metric-card.cyan::before{background:var(--cyan)}
+        .metric-card.red::before{background:var(--red)}
+        .metric-card.gold::before{background:var(--gold)}
+        .metric-card.purple::before{background:var(--purple)}
+        .metric-icon{font-size:16px;opacity:0.5}
+        .metric-num{font-size:28px;font-weight:800;font-family:var(--mono);line-height:1}
+        .metric-card.cyan .metric-num{color:var(--cyan)}
+        .metric-card.red .metric-num{color:var(--red)}
+        .metric-card.gold .metric-num{color:var(--gold)}
+        .metric-card.purple .metric-num{color:var(--purple)}
+        .metric-label{font-size:10px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+
+        /* ── FOOTER ── */
+        .bytebots-footer{text-align:center;padding:14px;font-size:11px;color:var(--muted);font-family:var(--mono);border-top:1px solid var(--border);line-height:1.8}
+        .bytebots-footer span{color:var(--cyan);font-weight:700}
         .toast.warn { background: var(--red);   color: #fff; }
         @keyframes toastIn {
           from { opacity:0; transform: translateX(-50%) translateY(8px); }
@@ -567,7 +604,14 @@ export default function App() {
       <div className="app-header">
         <div className="header-top">
           <div className="brand">
-            <div className="brand-logo">⚽</div>
+            <div className="brand-logo">
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none">
+                <rect x="2" y="2" width="20" height="20" rx="5" fill="#00E5FF" opacity="0.15"/>
+                <circle cx="12" cy="10" r="4" stroke="#00E5FF" strokeWidth="2"/>
+                <path d="M6 20c0-3.314 2.686-6 6-6s6 2.686 6 6" stroke="#00E5FF" strokeWidth="2" strokeLinecap="round"/>
+                <circle cx="12" cy="10" r="1.5" fill="#00E5FF"/>
+              </svg>
+            </div>
             <div>
               <div className="brand-title">Figuritas WC 2026</div>
               <div className="brand-sub">48 SELECCIONES · USA · MEX · CAN</div>
@@ -656,37 +700,73 @@ export default function App() {
       {/* STATS TAB */}
       {tab === "stats" && (
         <div className="stats-container">
+
+          {/* BYTEBOTS BRAND HEADER */}
+          <div className="bb-brand-header">
+            <div className="bb-brand-inner">
+              <svg width="32" height="32" viewBox="0 0 40 40" fill="none">
+                <rect width="40" height="40" rx="10" fill="#00E5FF" opacity="0.12"/>
+                <text x="20" y="26" textAnchor="middle" fontSize="20" fill="#00E5FF">🤖</text>
+              </svg>
+              <div>
+                <div className="bb-brand-name">ByteBots</div>
+                <div className="bb-brand-tag">Academia de IA · Robótica · Programación</div>
+              </div>
+            </div>
+            <div className="bb-brand-url">bytebots.com.co</div>
+          </div>
+
+          {/* HERO CIRCULAR */}
           <div className="stats-hero">
-            <div className="stats-hero-pct">{pctGlobal}%</div>
-            <div className="stats-hero-label">Álbum completado · {totalOwned} de {totalStickers} figuritas</div>
-          </div>
-          <div className="stats-grid">
-            <div className="stat-card">
-              <div className="stat-card-num" style={{ color: "var(--cyan)" }}>{totalOwned}</div>
-              <div className="stat-card-label">Tengo</div>
+            <div className="hero-circle-wrap">
+              <svg width="130" height="130" viewBox="0 0 130 130">
+                <circle cx="65" cy="65" r="56" fill="none" stroke="rgba(0,229,255,0.1)" strokeWidth="12"/>
+                <circle cx="65" cy="65" r="56" fill="none" stroke="#00E5FF" strokeWidth="12"
+                  strokeDasharray={`${2 * Math.PI * 56}`}
+                  strokeDashoffset={`${2 * Math.PI * 56 * (1 - pctGlobal / 100)}`}
+                  strokeLinecap="round"
+                  transform="rotate(-90 65 65)"
+                  style={{transition:"stroke-dashoffset 0.6s ease"}}
+                />
+              </svg>
+              <div className="hero-circle-center">
+                <div className="hero-pct">{pctGlobal}%</div>
+                <div className="hero-pct-label">listo</div>
+              </div>
             </div>
-            <div className="stat-card">
-              <div className="stat-card-num" style={{ color: "var(--red)" }}>{totalMissing}</div>
-              <div className="stat-card-label">Me faltan</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-card-num" style={{ color: "var(--gold)" }}>{totalDuplicates}</div>
-              <div className="stat-card-label">Repetidas</div>
-            </div>
-            <div className="stat-card">
-              <div className="stat-card-num" style={{ color: "var(--purple)" }}>{SECTIONS.length}</div>
-              <div className="stat-card-label">Secciones</div>
-            </div>
-          </div>
-          <div className="estimator-card">
-            <div className="estimator-title">⚡ Sobres estimados para completar</div>
-            <div className="estimator-val">~{remainingPacks} sobres</div>
-            <div className="estimator-desc">
-              Estimación basada en {totalMissing} figuritas faltantes a 5 por sobre, con factor 1.4× por duplicados esperados. El número real mejora con intercambios activos.
+            <div className="hero-meta">
+              <div className="hero-meta-title">Álbum Mundial 2026</div>
+              <div className="hero-meta-sub">{totalOwned} de {totalStickers} figuritas</div>
             </div>
           </div>
+
+          {/* MÉTRICAS GRANDES */}
+          <div className="stats-grid-2x2">
+            <div className="metric-card cyan">
+              <div className="metric-icon">✓</div>
+              <div className="metric-num">{totalOwned}</div>
+              <div className="metric-label">Tengo</div>
+            </div>
+            <div className="metric-card red">
+              <div className="metric-icon">✕</div>
+              <div className="metric-num">{totalMissing}</div>
+              <div className="metric-label">Me faltan</div>
+            </div>
+            <div className="metric-card gold">
+              <div className="metric-icon">⟳</div>
+              <div className="metric-num">{totalDuplicates}</div>
+              <div className="metric-label">Repetidas</div>
+            </div>
+            <div className="metric-card purple">
+              <div className="metric-icon">⚡</div>
+              <div className="metric-num">~{remainingPacks}</div>
+              <div className="metric-label">Sobres est.</div>
+            </div>
+          </div>
+
+          {/* PROGRESO POR SECCIÓN */}
           <div className="top-sections">
-            <div className="top-sections-title">Progreso por sección</div>
+            <div className="top-sections-title">Progreso por selección</div>
             {SECTIONS.map(s => {
               let owned = 0;
               for (let i = 1; i <= s.count; i++) {
@@ -704,6 +784,13 @@ export default function App() {
               );
             })}
           </div>
+
+          {/* FOOTER BYTEBOTS */}
+          <div className="bytebots-footer">
+            Desarrollado por <span>ByteBots</span> · bytebots.com.co<br/>
+            <span style={{fontSize:"9px",color:"var(--muted)"}}>Academia de IA, Robótica y Programación · Colombia 🇨🇴</span>
+          </div>
+
         </div>
       )}
 
