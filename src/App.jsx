@@ -787,17 +787,30 @@ export default function App() {
     setShowWelcome(false);
   };
 
-  // Auth listener
+  // Auth listener — handles OAuth redirect tokens
   useEffect(() => {
     if (!supabase) return;
+
+    // Handle OAuth redirect — token is in URL hash
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
-      if (session?.user) syncFromCloud(session.user.id);
+      if (session?.user) {
+        syncFromCloud(session.user.id);
+        showToast("✅ Sesión iniciada con Google");
+      }
     });
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_e, session) => {
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       setUser(session?.user ?? null);
-      if (session?.user) syncFromCloud(session.user.id);
+      if (event === "SIGNED_IN" && session?.user) {
+        syncFromCloud(session.user.id);
+        showToast("✅ Sesión iniciada con Google");
+      }
+      if (event === "SIGNED_OUT") {
+        showToast("Sesión cerrada", "warn");
+      }
     });
+
     return () => subscription.unsubscribe();
   }, []);
 
