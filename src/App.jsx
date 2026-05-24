@@ -68,6 +68,39 @@ const SECTIONS = [
   { id: "NZL", label: "Nueva Zelanda",    emoji: "🇳🇿", count: 18, color: "#00247D" },
 ];
 
+// ── LOGROS (hitos automáticos por cantidad) ───────────────────────────────────
+const ACHIEVEMENTS = [
+  { id: "ach_10",   threshold: 10,  icon: "🌱", title: "Arrancando",      desc: "Primeras 10 figuritas" },
+  { id: "ach_50",   threshold: 50,  icon: "🔥", title: "En racha",         desc: "50 figuritas conseguidas" },
+  { id: "ach_100",  threshold: 100, icon: "⚡", title: "Imparable",        desc: "100 figuritas — vas con todo" },
+  { id: "ach_200",  threshold: 200, icon: "🏅", title: "Coleccionista",    desc: "200 figuritas en tu álbum" },
+  { id: "ach_300",  threshold: 300, icon: "🎯", title: "Crack del álbum",  desc: "300 figuritas — nivel pro" },
+  { id: "ach_400",  threshold: 400, icon: "🏆", title: "Leyenda",          desc: "400 figuritas conseguidas" },
+  { id: "ach_500",  threshold: 500, icon: "💎", title: "Diamante",         desc: "Más de la mitad del álbum" },
+  { id: "ach_750",  threshold: 750, icon: "🚀", title: "Imparable total",  desc: "750 figuritas — casi completo" },
+  { id: "ach_994",  threshold: 994, icon: "👑", title: "ÁLBUM COMPLETO",   desc: "¡Leyenda absoluta del Mundial!" },
+];
+
+// ── ESTRELLAS (figuras especiales — se marcan manualmente) ────────────────────
+const STARS = [
+  { id: "star_messi",    name: "Lionel Messi",       team: "Argentina 🇦🇷",    emoji: "🐐", rare: true  },
+  { id: "star_cr7",      name: "Cristiano Ronaldo",  team: "Portugal 🇵🇹",     emoji: "⚡", rare: true  },
+  { id: "star_mbappe",   name: "Kylian Mbappé",      team: "Francia 🇫🇷",      emoji: "💨", rare: true  },
+  { id: "star_vini",     name: "Vinícius Jr.",        team: "Brasil 🇧🇷",       emoji: "🔥", rare: true  },
+  { id: "star_james",    name: "James Rodríguez",    team: "Colombia 🇨🇴",     emoji: "🎩", rare: true  },
+  { id: "star_haaland",  name: "Erling Haaland",     team: "Noruega",          emoji: "🎯", rare: false },
+  { id: "star_bellingham",name: "Jude Bellingham",   team: "Inglaterra 🏴󠁧󠁢󠁥󠁮󠁧󠁿",  emoji: "👑", rare: false },
+  { id: "star_pedri",    name: "Pedri",              team: "España 🇪🇸",       emoji: "🎪", rare: false },
+  { id: "star_rodri",    name: "Rodri",              team: "España 🇪🇸",       emoji: "🧠", rare: false },
+  { id: "star_salah",    name: "Mohamed Salah",      team: "Egipto 🇪🇬",       emoji: "⭐", rare: false },
+  { id: "star_osimhen",  name: "Victor Osimhen",     team: "Nigeria 🇳🇬",      emoji: "💥", rare: false },
+  { id: "star_son",      name: "Heung-min Son",      team: "Rep. de Corea 🇰🇷",emoji: "🎯", rare: false },
+  { id: "star_lamine",   name: "Lamine Yamal",       team: "España 🇪🇸",       emoji: "🌟", rare: true  },
+  { id: "star_pulisic",  name: "Christian Pulisic",  team: "Estados Unidos 🇺🇸",emoji: "🦅", rare: false },
+  { id: "star_davies",   name: "Alphonso Davies",    team: "Canadá 🇨🇦",       emoji: "⚡", rare: false },
+];
+
+
 function buildInitialState() {
   const state = {};
   SECTIONS.forEach((s) => {
@@ -227,14 +260,170 @@ function Section({ section, collection, onAdd, onRemove, filter, search }) {
 }
 
 // ── MAIN APP ─────────────────────────────────────────────────────────────────
+// ── CONFETTI ─────────────────────────────────────────────────────────────────
+function Confetti() {
+  const colors = ["#00E5FF","#FFD700","#FF4466","#A78BFA","#00FF88"];
+  const pieces = Array.from({length: 40}, (_, i) => ({
+    id: i,
+    color: colors[i % colors.length],
+    left: Math.random() * 100,
+    delay: Math.random() * 0.8,
+    size: 6 + Math.random() * 8,
+  }));
+  return (
+    <div style={{position:"fixed",inset:0,pointerEvents:"none",zIndex:9998,overflow:"hidden"}}>
+      {pieces.map(p => (
+        <div key={p.id} style={{
+          position:"absolute", left:`${p.left}%`, top:"-20px",
+          width:p.size, height:p.size, borderRadius:"2px",
+          background:p.color, opacity:0.9,
+          animation:`confettiFall ${1.5 + p.delay}s ${p.delay}s ease-in forwards`,
+        }}/>
+      ))}
+      <style>{`@keyframes confettiFall{to{transform:translateY(110vh) rotate(720deg);opacity:0}}`}</style>
+    </div>
+  );
+}
+
+// ── ACHIEVEMENT POPUP ────────────────────────────────────────────────────────
+function AchievementPopup({ achievement, onClose }) {
+  useEffect(() => {
+    const t = setTimeout(onClose, 4000);
+    return () => clearTimeout(t);
+  }, [onClose]);
+  return (
+    <div style={{
+      position:"fixed",bottom:"80px",left:"50%",transform:"translateX(-50%)",
+      background:"linear-gradient(135deg,#1a1d26,#0d1117)",
+      border:"1px solid var(--cyan)",borderRadius:"16px",
+      padding:"16px 20px",zIndex:9997,minWidth:"280px",
+      boxShadow:"0 0 30px rgba(0,229,255,0.3)",
+      animation:"popupIn 0.3s ease",
+    }}>
+      <style>{`@keyframes popupIn{from{opacity:0;transform:translateX(-50%) translateY(20px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}`}</style>
+      <div style={{display:"flex",alignItems:"center",gap:"12px"}}>
+        <div style={{fontSize:"36px",lineHeight:1}}>{achievement.icon}</div>
+        <div>
+          <div style={{fontSize:"10px",color:"var(--cyan)",fontFamily:"var(--mono)",textTransform:"uppercase",letterSpacing:"1px",marginBottom:"2px"}}>🏆 Logro desbloqueado</div>
+          <div style={{fontSize:"15px",fontWeight:"800",color:"var(--text)"}}>{achievement.title}</div>
+          <div style={{fontSize:"11px",color:"var(--muted)",marginTop:"2px"}}>{achievement.desc}</div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── STATS CHART ──────────────────────────────────────────────────────────────
+function StatsChart({ collection }) {
+  const [period, setPeriod] = useState("week");
+  const STORAGE_HISTORY_KEY = "bytebots_history_wc2026";
+
+  // Load or initialize history
+  const history = useMemo(() => {
+    try {
+      const raw = localStorage.getItem(STORAGE_HISTORY_KEY);
+      if (raw) return JSON.parse(raw);
+    } catch {}
+    return [];
+  }, []);
+
+  // Save current snapshot daily
+  useEffect(() => {
+    const today = new Date().toISOString().split("T")[0];
+    const owned = Object.values(collection).filter(v => v >= 1).length;
+    try {
+      const raw = localStorage.getItem(STORAGE_HISTORY_KEY);
+      const hist = raw ? JSON.parse(raw) : [];
+      const exists = hist.find(h => h.date === today);
+      if (!exists) {
+        hist.push({ date: today, owned });
+        if (hist.length > 365) hist.shift();
+        localStorage.setItem(STORAGE_HISTORY_KEY, JSON.stringify(hist));
+      }
+    } catch {}
+  }, [collection]);
+
+  const days = period === "week" ? 7 : period === "month" ? 30 : 365;
+  const label = period === "week" ? "Semana" : period === "month" ? "Mes" : "Año";
+
+  // Generate chart points from history
+  const points = useMemo(() => {
+    const today = new Date();
+    const result = [];
+    for (let i = days - 1; i >= 0; i--) {
+      const d = new Date(today);
+      d.setDate(d.getDate() - i);
+      const key = d.toISOString().split("T")[0];
+      const found = history.find(h => h.date === key);
+      result.push({ date: key, owned: found ? found.owned : null });
+    }
+    // Fill nulls with last known value
+    let last = 0;
+    return result.map(p => {
+      if (p.owned !== null) last = p.owned;
+      return { ...p, owned: last };
+    });
+  }, [history, days]);
+
+  const maxVal = Math.max(...points.map(p => p.owned), 1);
+  const W = 300, H = 80, PAD = 8;
+
+  const pathD = points.map((p, i) => {
+    const x = PAD + (i / (points.length - 1)) * (W - PAD * 2);
+    const y = H - PAD - ((p.owned / maxVal) * (H - PAD * 2));
+    return `${i === 0 ? "M" : "L"} ${x} ${y}`;
+  }).join(" ");
+
+  const lastPoint = points[points.length - 1];
+  const lastX = PAD + ((points.length - 1) / (points.length - 1)) * (W - PAD * 2);
+  const lastY = H - PAD - ((lastPoint.owned / maxVal) * (H - PAD * 2));
+
+  return (
+    <div className="chart-card">
+      <div className="chart-header">
+        <span className="chart-title">📈 Progreso</span>
+        <div className="chart-periods">
+          {[["week","Semana"],["month","Mes"],["year","Año"]].map(([id, lbl]) => (
+            <button key={id} className={`period-btn ${period === id ? "active" : ""}`} onClick={() => setPeriod(id)}>{lbl}</button>
+          ))}
+        </div>
+      </div>
+      <svg viewBox={`0 0 ${W} ${H}`} className="chart-svg">
+        {/* Grid lines */}
+        {[0.25, 0.5, 0.75, 1].map(f => (
+          <line key={f} x1={PAD} y1={H - PAD - f * (H - PAD * 2)} x2={W - PAD} y2={H - PAD - f * (H - PAD * 2)} stroke="rgba(255,255,255,0.05)" strokeWidth="0.5"/>
+        ))}
+        {/* Area fill */}
+        <path d={`${pathD} L ${W - PAD} ${H - PAD} L ${PAD} ${H - PAD} Z`} fill="rgba(0,229,255,0.06)"/>
+        {/* Line */}
+        <path d={pathD} fill="none" stroke="var(--cyan)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
+        {/* Last point dot */}
+        <circle cx={lastX} cy={lastY} r="3" fill="var(--cyan)"/>
+        <text x={lastX} y={lastY - 6} textAnchor="middle" fill="var(--cyan)" fontSize="7" fontFamily="'JetBrains Mono',monospace">{lastPoint.owned}</text>
+      </svg>
+      <div className="chart-labels">
+        <span>{points[0]?.date?.slice(5)}</span>
+        <span style={{color:"var(--muted)",fontSize:"10px"}}>{label}</span>
+        <span>{points[points.length-1]?.date?.slice(5)}</span>
+      </div>
+    </div>
+  );
+}
+
 export default function App() {
   const [collection, setCollection] = useState(loadState);
   const [filter, setFilter]         = useState("all");
   const [search, setSearch]         = useState("");
   const [tab, setTab]               = useState("album");
   const [toast, setToast]           = useState(null);
+  const [stars, setStars]           = useState(loadStars);
+  const [badges, setBadges]         = useState(loadBadges);
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [newAchievement, setNewAchievement] = useState(null);
 
   useEffect(() => { saveState(collection); }, [collection]);
+  useEffect(() => { saveStars(stars); }, [stars]);
+  useEffect(() => { saveBadges(badges); }, [badges]);
 
   const showToast = (msg, type = "ok") => {
     setToast({ msg, type });
@@ -242,7 +431,22 @@ export default function App() {
   };
 
   const handleAdd = useCallback((id) => {
-    setCollection((prev) => ({ ...prev, [id]: (prev[id] ?? 0) + 1 }));
+    setCollection((prev) => {
+      const next = { ...prev, [id]: (prev[id] ?? 0) + 1 };
+      // Check achievements
+      const owned = Object.values(next).filter(v => v >= 1).length;
+      setBadges(prevBadges => {
+        const newBadge = ACHIEVEMENTS.find(a => a.threshold === owned && !prevBadges.includes(a.id));
+        if (newBadge) {
+          setShowConfetti(true);
+          setNewAchievement(newBadge);
+          setTimeout(() => setShowConfetti(false), 3000);
+          return [...prevBadges, newBadge.id];
+        }
+        return prevBadges;
+      });
+      return next;
+    });
   }, []);
 
   const handleRemove = useCallback((id) => {
@@ -290,6 +494,10 @@ export default function App() {
     });
     return list;
   }, [collection]);
+
+  const toggleStar = useCallback((id) => {
+    setStars(prev => ({ ...prev, [id]: !prev[id] }));
+  }, []);
 
   const copyTrade = () => {
     const lines = duplicateList.map(d => `• ${d.id} (${d.section}) — +${d.count}`);
@@ -593,6 +801,39 @@ export default function App() {
         /* ── FOOTER ── */
         .bytebots-footer{text-align:center;padding:14px;font-size:11px;color:var(--muted);font-family:var(--mono);border-top:1px solid var(--border);line-height:1.8}
         .bytebots-footer span{color:var(--cyan);font-weight:700}
+        .chart-card{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:14px}
+        .chart-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+        .chart-title{font-size:12px;font-weight:700}
+        .chart-periods{display:flex;gap:4px}
+        .period-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--muted);font-family:var(--font);font-size:10px;font-weight:700;padding:3px 8px;cursor:pointer;transition:all 0.15s}
+        .period-btn.active{background:var(--cyan);color:#000;border-color:var(--cyan)}
+        .chart-svg{width:100%;height:auto}
+        .chart-labels{display:flex;justify-content:space-between;font-size:9px;color:var(--muted);font-family:var(--mono);margin-top:4px}
+        .achievements-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+        .achievement-card{border-radius:10px;padding:10px;text-align:center;border:1px solid var(--border);transition:all 0.2s}
+        .achievement-card.unlocked{background:linear-gradient(135deg,rgba(0,229,255,0.1),rgba(167,139,250,0.08));border-color:rgba(0,229,255,0.3)}
+        .achievement-card.locked{background:var(--surface2);opacity:0.5}
+        .ach-icon{font-size:24px;margin-bottom:4px}
+        .ach-title{font-size:10px;font-weight:800;color:var(--text);margin-bottom:2px}
+        .ach-desc{font-size:8px;color:var(--muted);line-height:1.3}
+        .star-row{display:flex;align-items:center;gap:10px;padding:10px 0;border-bottom:1px solid var(--border);cursor:pointer;transition:all 0.15s}
+        .star-row:last-child{border-bottom:none}
+        .star-row.got .star-name{color:var(--cyan)}
+        .star-row.got{background:rgba(0,229,255,0.03);border-radius:8px;padding:10px 6px}
+        .star-emoji{font-size:22px;flex-shrink:0}
+        .star-info{flex:1}
+        .star-name{font-size:12px;font-weight:700;color:var(--text)}
+        .star-team{font-size:10px;color:var(--muted);margin-top:1px}
+        .star-check{font-size:18px;color:var(--muted);font-weight:700;min-width:24px;text-align:center}
+        .star-check.checked{color:var(--cyan)}
+        .rare-badge{background:linear-gradient(90deg,#FFD700,#FF8C00);color:#000;font-size:7px;font-weight:800;padding:1px 4px;border-radius:4px;margin-left:4px;vertical-align:middle}
+        .donut-wrap{display:flex;justify-content:center;margin-bottom:12px}
+        .donut-svg{width:130px;height:130px}
+        .stats-summary-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+        .sum-item{display:flex;align-items:center;gap:10px;background:var(--surface2);border-radius:10px;padding:10px}
+        .sum-icon{width:32px;height:32px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:14px;flex-shrink:0}
+        .sum-num{font-size:20px;font-weight:800;font-family:var(--mono);line-height:1}
+        .sum-label{font-size:9px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
         .toast.warn { background: var(--red);   color: #fff; }
         @keyframes toastIn {
           from { opacity:0; transform: translateX(-50%) translateY(8px); }
@@ -795,6 +1036,43 @@ export default function App() {
       )}
 
       {/* TRADE TAB */}
+      {tab === "stars" && (
+        <div className="stats-container">
+          {/* LOGROS */}
+          <div className="top-sections">
+            <div className="top-sections-title">🏆 Logros — {badges.length}/{ACHIEVEMENTS.length} desbloqueados</div>
+            <div className="achievements-grid">
+              {ACHIEVEMENTS.map(a => {
+                const unlocked = badges.includes(a.id);
+                return (
+                  <div key={a.id} className={`achievement-card ${unlocked ? "unlocked" : "locked"}`}>
+                    <div className="ach-icon">{unlocked ? a.icon : "🔒"}</div>
+                    <div className="ach-title">{a.title}</div>
+                    <div className="ach-desc">{unlocked ? a.desc : `${a.threshold} figuritas`}</div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* ESTRELLAS */}
+          <div className="top-sections">
+            <div className="top-sections-title">⭐ Figuras Estrella — {Object.values(stars).filter(Boolean).length}/{STARS.length} conseguidas</div>
+            {STARS.map(s => (
+              <div key={s.id} className={`star-row ${stars[s.id] ? "got" : ""}`} onClick={() => toggleStar(s.id)}>
+                <div className="star-emoji">{s.emoji}</div>
+                <div className="star-info">
+                  <div className="star-name">{s.name} {s.rare ? <span className="rare-badge">RARE</span> : ""}</div>
+                  <div className="star-team">{s.team}</div>
+                </div>
+                <div className={`star-check ${stars[s.id] ? "checked" : ""}`}>{stars[s.id] ? "✓" : "○"}</div>
+              </div>
+            ))}
+          </div>
+          <div className="bytebots-footer">Desarrollado por <span>ByteBots</span> · bytebots.com.co 🤖</div>
+        </div>
+      )}
+
       {tab === "trade" && (
         <div className="trade-container">
           <div className="trade-card">
@@ -852,6 +1130,8 @@ export default function App() {
 
       {/* TOAST */}
       {toast && <div className={`toast ${toast.type}`}>{toast.msg}</div>}
+      {showConfetti && <Confetti />}
+      {newAchievement && <AchievementPopup achievement={newAchievement} onClose={() => setNewAchievement(null)} />}
     </>
   );
 }
