@@ -1,9 +1,9 @@
 import React, { useState, useMemo, useEffect, useRef, useCallback } from "react";
 import { createClient } from "@supabase/supabase-js";
 
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "";
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "";
-const supabase = SUPABASE_URL ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://tocwjcdbdqjxsrzawchs.supabase.co";
+const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_hhCdUfKUhMyPQR-6NsESTA_OTeyckRK";
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
 
 // ── 48 SELECCIONES + SECCIONES ESPECIALES (FIFA World Cup 2026) ──────────────
 // Fuente: FIFA.com — clasificados oficiales al corte de mayo 2026
@@ -456,10 +456,13 @@ function ExchangeFinder({ collection, user, supabase, showToast }) {
               🔒 Inicia sesión para activar la búsqueda de intercambios y que otros puedan encontrarte
             </div>
             <button
-              onClick={() => supabase && supabase.auth.signInWithOAuth({
-                provider:"google",
-                options:{ redirectTo: window.location.href }
-              })}
+              onClick={() => {
+                if (!supabase) return;
+                supabase.auth.signInWithOAuth({
+                  provider: "google",
+                  options: { redirectTo: window.location.origin }
+                });
+              }}
               style={{
                 width:"100%",
                 background:"#fff",
