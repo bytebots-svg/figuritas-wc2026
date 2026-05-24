@@ -49,8 +49,11 @@ const SECTIONS = [
   { id: "IRN", label: "Irán", emoji: "🇮🇷", count: 18, color: "#239F40" },
   { id: "AUS", label: "Australia", emoji: "🇦🇺", count: 18, color: "#00008B" },
   { id: "UZB", label: "Uzbekistán", emoji: "🇺🇿", count: 18, color: "#1EB53A" },
-  { id: "PAN", label: "Panamá", emoji: "🇵🇦", count: 18, color: "#DA121A" },
-  { id: "JAM", label: "Jamaica"
+  { id: "PAN", label: "Panama", emoji: "PA", count: 18, color: "#DA121A" },
+  { id: "JAM", label: "Jamaica", emoji: "JM", count: 18, color: "#FED100" },
+{ id: "HON", label: "Honduras", emoji: "HN", count: 18, color: "#0073CF" },
+{ id: "CRC", label: "Costa Rica", emoji: "CR", count: 18, color: "#002B7F" },
+{ id: "NZL", label: "Nueva Zelanda", emoji: "NZ", count: 18, color: "#00247D" },
    function buildInitialState() {
   const state = {};
   SECTIONS.forEach((s) => {
