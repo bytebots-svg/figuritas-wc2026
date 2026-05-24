@@ -3,7 +3,13 @@ import { createClient } from "@supabase/supabase-js";
 
 const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL || "https://tocwjcdbdqjxsrzawchs.supabase.co";
 const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY || "sb_publishable_hhCdUfKUhMyPQR-6NsESTA_OTeyckRK";
-const supabase = createClient(SUPABASE_URL, SUPABASE_KEY);
+const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
+  auth: {
+    flowType: "implicit",
+    detectSessionInUrl: true,
+    persistSession: true,
+  }
+});
 
 // ── 48 SELECCIONES + SECCIONES ESPECIALES (FIFA World Cup 2026) ──────────────
 // Fuente: FIFA.com — clasificados oficiales al corte de mayo 2026
@@ -460,7 +466,7 @@ function ExchangeFinder({ collection, user, supabase, showToast }) {
                 if (!supabase) return;
                 supabase.auth.signInWithOAuth({
                   provider: "google",
-                  options: { redirectTo: window.location.origin }
+                  options: { redirectTo: "https://bytebots-figuritas-wc2026.vercel.app" }
                 });
               }}
               style={{
