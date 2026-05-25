@@ -1423,7 +1423,7 @@ export default function App() {
             </div>
             <div>
               <div className="brand-title"><span className="brand-byte">Byte</span><span className="brand-bots">Bots</span> <span className="brand-app">Figuritas</span></div>
-              <div className="brand-sub">WC 2026 · 48 SELECCIONES · CARTAGENA</div>
+              <div className="brand-sub">WC 2026 · 48 SELECCIONES </div>
             </div>
           </div>
           <div className="global-stats">
@@ -1653,7 +1653,7 @@ export default function App() {
               </div>
             ))}
           </div>
-          <div className="bytebots-footer">Desarrollado con ❤️ por <span>ByteBots</span> · bytebots.com.co · Cartagena · <a href="/privacy.html" style={{color:"rgba(242,244,247,0.25)",textDecoration:"none"}}>Privacidad</a></div>
+          <div className="bytebots-footer">Desarrollado con ❤️ por <span>ByteBots</span> · bytebots.com.co  · <a href="/privacy.html" style={{color:"rgba(242,244,247,0.25)",textDecoration:"none"}}>Privacidad</a></div>
         </div>
       )}
 
@@ -1800,7 +1800,7 @@ export default function App() {
             </button>
 
             <div style={{fontSize:"11px",color:"rgba(242,244,247,0.25)",marginTop:"14px",fontFamily:"var(--mono)"}}>
-              bytebots.com.co · Cartagena, Colombia 🇨🇴
+              bytebots.com.co · Colombia 🇨🇴
             </div>
           </div>
         </div>
