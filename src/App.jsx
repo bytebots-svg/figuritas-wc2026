@@ -164,38 +164,89 @@ function loadBadges() {
 function saveBadges(b) { try { localStorage.setItem(BADGES_KEY, JSON.stringify(b)); } catch {} }
 
 // ── LONG PRESS HOOK ──────────────────────────────────────────────────────────
-function useLongPress(onLongPress, onClick, ms = 900) {
+// ── ROBUST INTERACTION HOOK ──────────────────────────────────────────────────
+// Soluciona: double trigger mobile, accidental long press, race conditions
+function useStickerInteraction(onTap, onLongPress) {
+  const LONG_PRESS_MS = 1000;       // 1 segundo exacto para borrar
+  const MIN_TAP_MS = 10;            // mínimo para considerar toque real
+  const MAX_TAP_MS = 400;           // máximo para considerar tap (no long press)
+  const DEBOUNCE_MS = 300;          // anti-doble-disparo
+
   const timerRef = useRef(null);
-  const firedRef = useRef(false);
-  const startTimeRef = useRef(0);
+  const isLongRef = useRef(false);
+  const startRef = useRef(0);
+  const lastTapRef = useRef(0);
+  const touchActiveRef = useRef(false);
+  const pressingRef = useRef(false);
 
-  const start = useCallback((e) => {
-    e.preventDefault();
-    firedRef.current = false;
-    startTimeRef.current = Date.now();
-    timerRef.current = setTimeout(() => {
-      firedRef.current = true;
-      onLongPress();
-    }, ms);
-  }, [onLongPress, ms]);
+  const handleStart = useCallback((e) => {
+    // Ignorar si ya hay un touch activo (multi-touch)
+    if (e.type === 'mousedown' && touchActiveRef.current) return;
+    if (e.type === 'touchstart') {
+      touchActiveRef.current = true;
+      e.preventDefault(); // Previene el click sintético del navegador
+    }
 
-  const cancel = useCallback(() => {
+    isLongRef.current = false;
+    pressingRef.current = true;
+    startRef.current = Date.now();
+
     clearTimeout(timerRef.current);
+    timerRef.current = setTimeout(() => {
+      if (pressingRef.current) {
+        isLongRef.current = true;
+        onLongPress();
+      }
+    }, LONG_PRESS_MS);
+  }, [onLongPress]);
+
+  const handleEnd = useCallback((e) => {
+    if (e.type === 'touchend') {
+      // Resetear flag de touch después de un delay para bloquear el click sintético
+      setTimeout(() => { touchActiveRef.current = false; }, 400);
+    }
+    if (e.type === 'mouseup' && touchActiveRef.current) return;
+
+    clearTimeout(timerRef.current);
+
+    if (!pressingRef.current) return;
+    pressingRef.current = false;
+
+    if (isLongRef.current) return; // Ya se ejecutó long press
+
+    const elapsed = Date.now() - startRef.current;
+    if (elapsed < MIN_TAP_MS || elapsed > MAX_TAP_MS) return;
+
+    // Anti-doble-disparo: ignorar si el último tap fue hace menos de DEBOUNCE_MS
+    const now = Date.now();
+    if (now - lastTapRef.current < DEBOUNCE_MS) return;
+    lastTapRef.current = now;
+
+    onTap();
+  }, [onTap]);
+
+  const handleCancel = useCallback(() => {
+    clearTimeout(timerRef.current);
+    pressingRef.current = false;
+    isLongRef.current = false;
   }, []);
 
-  const end = useCallback(() => {
-    clearTimeout(timerRef.current);
-    const elapsed = Date.now() - startTimeRef.current;
-    // Solo registra tap si el toque fue corto (menos de 300ms) — evita doble registro
-    if (!firedRef.current && elapsed < 300) onClick();
-  }, [onClick]);
+  // Bloquear el click sintético que genera el navegador después de touchend
+  const handleClick = useCallback((e) => {
+    if (touchActiveRef.current) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+  }, []);
 
   return {
-    onMouseDown: start,
-    onMouseUp: end,
-    onMouseLeave: cancel,
-    onTouchStart: start,
-    onTouchEnd: end,
+    onMouseDown: handleStart,
+    onMouseUp: handleEnd,
+    onMouseLeave: handleCancel,
+    onTouchStart: handleStart,
+    onTouchEnd: handleEnd,
+    onTouchCancel: handleCancel,
+    onClick: handleClick,
   };
 }
 
@@ -203,31 +254,27 @@ function useLongPress(onLongPress, onClick, ms = 900) {
 function StickerCard({ id, value, onAdd, onRemove }) {
   const num = id.split("-").pop();
   const state = value === 0 ? "missing" : value === 1 ? "owned" : "duplicate";
+  const [pressing, setPressing] = useState(false);
 
-  const handlers = useLongPress(
-    () => onRemove(id),   // long press → restar
-    () => onAdd(id),      // tap → sumar
-    900
-  );
-
-  const tip = value === 0
-    ? "Falta · toca para marcar"
-    : value === 1
-    ? "Tengo · toca = repetida · mantén = quitar"
-    : `×${value} rep · toca = +1 · mantén = quitar una`;
+  const handleTap = useCallback(() => { onAdd(id); }, [id, onAdd]);
+  const handleLong = useCallback(() => { setPressing(false); onRemove(id); }, [id, onRemove]);
+  const handlers = useStickerInteraction(handleTap, handleLong);
 
   return (
     <button
-      {...handlers}
-      className={`sticker-card state-${state}`}
-      title={tip}
-      style={{ userSelect: "none", WebkitUserSelect: "none" }}
+      onMouseDown={(e) => { setPressing(true); handlers.onMouseDown(e); }}
+      onMouseUp={(e) => { setPressing(false); handlers.onMouseUp(e); }}
+      onMouseLeave={(e) => { setPressing(false); handlers.onMouseLeave(e); }}
+      onTouchStart={(e) => { setPressing(true); handlers.onTouchStart(e); }}
+      onTouchEnd={(e) => { setPressing(false); handlers.onTouchEnd(e); }}
+      onTouchCancel={(e) => { setPressing(false); handlers.onTouchCancel(e); }}
+      onClick={handlers.onClick}
+      className={`sticker-card state-${state}${pressing && value >= 1 ? " pressing" : ""}`}
+      style={{ userSelect: "none", WebkitUserSelect: "none", WebkitTouchCallout: "none" }}
     >
       <span className="sticker-num">{num}</span>
       {value >= 2 && <span className="dup-badge">×{value}</span>}
-      {value >= 1 && (
-        <span className="remove-hint" aria-hidden="true">−</span>
-      )}
+      {pressing && value >= 1 && <span className="press-indicator" aria-hidden="true">⏳</span>}
     </button>
   );
 }
@@ -899,31 +946,38 @@ export default function App() {
 
   const handleAdd = useCallback((id) => {
     setCollection((prev) => {
-      const next = { ...prev, [id]: (prev[id] ?? 0) + 1 };
-      // Check achievements
+      const cur = prev[id] ?? 0;
+      // Validación de integridad — nunca decrementar desde aquí
+      if (cur < 0) return { ...prev, [id]: 1 };
+      const next = { ...prev, [id]: cur + 1 };
+      // Check achievements after state update
       const owned = Object.values(next).filter(v => v >= 1).length;
-      setBadges(prevBadges => {
-        const newBadge = ACHIEVEMENTS.find(a => a.threshold === owned && !prevBadges.includes(a.id));
-        if (newBadge) {
-          setShowConfetti(true);
-          setNewAchievement(newBadge);
-          setTimeout(() => setShowConfetti(false), 3000);
-          return [...prevBadges, newBadge.id];
-        }
-        return prevBadges;
-      });
+      // Use setTimeout to avoid setState inside setState
+      setTimeout(() => {
+        setBadges(prevBadges => {
+          const newBadge = ACHIEVEMENTS.find(a => a.threshold === owned && !prevBadges.includes(a.id));
+          if (newBadge) {
+            setShowConfetti(true);
+            setNewAchievement(newBadge);
+            setTimeout(() => setShowConfetti(false), 3000);
+            return [...prevBadges, newBadge.id];
+          }
+          return prevBadges;
+        });
+      }, 0);
       return next;
     });
-  }, []);
+  }, [setBadges, setShowConfetti, setNewAchievement]);
 
   const handleRemove = useCallback((id) => {
     setCollection((prev) => {
       const cur = prev[id] ?? 0;
-      if (cur === 0) return prev;
-      showToast(`↩ ${id} restada`, "warn");
-      return { ...prev, [id]: cur - 1 };
+      if (cur <= 0) return prev; // Guard: nunca ir negativo
+      const newVal = cur - 1;
+      setTimeout(() => showToast(`↩ ${id} — quitada`, "warn"), 0);
+      return { ...prev, [id]: newVal };
     });
-  }, []);
+  }, [showToast]);
 
   // Global counts
   const totalStickers  = useMemo(() => Object.keys(collection).length, [collection]);
