@@ -16,11 +16,10 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // Cada selección tiene 18 figuritas (jugadores) según estructura Panini 2026
 // Las secciones especiales tienen conteos según el álbum oficial
 const SECTIONS = [
-  // ESPECIALES
-  { id: "FWC_ESP", label: "FWC – Especiales",      emoji: "🏆", count: 20, color: "#FFD700" },
-  { id: "FWC_BAL", label: "FWC – Balón y Países",  emoji: "⚽", count: 18, color: "#00E5FF" },
-  { id: "FWC_HIS", label: "FWC – Historia",         emoji: "📜", count: 15, color: "#A78BFA" },
-  { id: "FWC_EST", label: "FWC – Estadios",         emoji: "🏟️", count: 16, color: "#F97316" },
+  // ESPECIALES — numeración exacta álbum físico
+  { id: "FWC_ESP", label: "FWC – Especiales (00-4)",    emoji: "🏆", count: 5,  color: "#FFD700", start: 0 },
+  { id: "FWC_BAL", label: "FWC – Balón y Países (5-8)", emoji: "⚽", count: 4,  color: "#00E5FF", start: 5 },
+  { id: "FWC_HIS", label: "FWC – Historia (9-19)",      emoji: "📜", count: 11, color: "#A78BFA", start: 9 },
   // GRUPO A
   { id: "MEX", label: "México",           emoji: "🇲🇽", count: 18, color: "#00B94A" },
   { id: "USA", label: "Estados Unidos",   emoji: "🇺🇸", count: 18, color: "#3B82F6" },
@@ -77,6 +76,8 @@ const SECTIONS = [
   { id: "CRC", label: "Costa Rica",       emoji: "🇨🇷", count: 18, color: "#002B7F" },
   // OFC
   { id: "NZL", label: "Nueva Zelanda",    emoji: "🇳🇿", count: 18, color: "#00247D" },
+  // COCA-COLA — al final del álbum
+  { id: "COCA", label: "Coca-Cola",              emoji: "🥤", count: 14, color: "#FF0000" },
 ];
 
 // ── LOGROS (hitos automáticos por cantidad) ───────────────────────────────────
@@ -115,8 +116,17 @@ const STARS = [
 function buildInitialState() {
   const state = {};
   SECTIONS.forEach((s) => {
-    for (let i = 1; i <= s.count; i++) {
-      state[`${s.id}-${i}`] = 0;
+    if (s.start !== undefined) {
+      // Numbered from start — e.g. 0,1,2,3,4 or 5,6,7,8
+      for (let i = s.start; i < s.start + s.count; i++) {
+        const num = i === 0 ? "00" : String(i);
+        state[`${s.id}-${num}`] = 0;
+      }
+    } else {
+      // Standard 1-based numbering
+      for (let i = 1; i <= s.count; i++) {
+        state[`${s.id}-${i}`] = 0;
+      }
     }
   });
   return state;
@@ -237,8 +247,10 @@ function Section({ section, collection, onAdd, onRemove, filter, search }) {
 
   const stickers = useMemo(() => {
     const list = [];
-    for (let i = 1; i <= section.count; i++) {
-      const id = `${section.id}-${i}`;
+    const start = section.start !== undefined ? section.start : 1;
+    for (let i = start; i < start + section.count; i++) {
+      const num = (section.start !== undefined && i === 0) ? "00" : String(i);
+      const id = `${section.id}-${num}`;
       const val = collection[id] ?? 0;
       if (filter === "missing"   && val !== 0) continue;
       if (filter === "duplicate" && val < 2)   continue;
@@ -249,8 +261,10 @@ function Section({ section, collection, onAdd, onRemove, filter, search }) {
 
   const owned = useMemo(() => {
     let o = 0;
-    for (let i = 1; i <= section.count; i++) {
-      if ((collection[`${section.id}-${i}`] ?? 0) >= 1) o++;
+    const start = section.start !== undefined ? section.start : 1;
+    for (let i = start; i < start + section.count; i++) {
+      const num = (section.start !== undefined && i === 0) ? "00" : String(i);
+      if ((collection[`${section.id}-${num}`] ?? 0) >= 1) o++;
     }
     return o;
   }, [section, collection]);
