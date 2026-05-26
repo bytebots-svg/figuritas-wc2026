@@ -935,13 +935,52 @@ export default function App() {
   const syncFromCloud = async (userId) => {
     if (!supabase) return;
     setSyncing(true);
-    const { data } = await supabase.from("stickers").select("sticker_code,count").eq("user_id", userId);
-    if (data && data.length > 0) {
-      const fresh = buildInitialState();
-      data.forEach(({ sticker_code, count }) => { if (fresh[sticker_code] !== undefined) fresh[sticker_code] = count; });
-      setCollection(fresh);
-      saveState(fresh);
-      showToast("✅ Datos sincronizados desde la nube");
+    try {
+      const { data } = await supabase.from("stickers").select("sticker_code,count").eq("user_id", userId);
+
+      // Load current local progress
+      const localState = loadState();
+      const localOwned = Object.values(localState).filter(v => v >= 1).length;
+
+      if (data && data.length > 0) {
+        // Cloud has data — smart merge: take max value per sticker
+        const cloudState = buildInitialState();
+        data.forEach(({ sticker_code, count }) => {
+          if (cloudState[sticker_code] !== undefined) cloudState[sticker_code] = count;
+        });
+        const cloudOwned = Object.values(cloudState).filter(v => v >= 1).length;
+
+        // Merge: for each sticker take the higher value (never destroy progress)
+        const merged = buildInitialState();
+        Object.keys(merged).forEach(key => {
+          merged[key] = Math.max(localState[key] ?? 0, cloudState[key] ?? 0);
+        });
+
+        setCollection(merged);
+        saveState(merged);
+        showToast(`✅ Progreso sincronizado — ${Object.values(merged).filter(v=>v>=1).length} láminas`);
+
+        // Upload merged state to cloud to keep it in sync
+        const entries = Object.entries(merged)
+          .filter(([, v]) => v > 0)
+          .map(([sticker_code, count]) => ({ user_id: userId, sticker_code, count }));
+        if (entries.length > 0) {
+          await supabase.from("stickers").upsert(entries, { onConflict: "user_id,sticker_code" });
+        }
+      } else if (localOwned > 0) {
+        // Cloud is empty but user has local progress — upload local to cloud
+        const entries = Object.entries(localState)
+          .filter(([, v]) => v > 0)
+          .map(([sticker_code, count]) => ({ user_id: userId, sticker_code, count }));
+        if (entries.length > 0) {
+          await supabase.from("stickers").upsert(entries, { onConflict: "user_id,sticker_code" });
+        }
+        showToast(`✅ Progreso guardado en la nube — ${localOwned} láminas`);
+      } else {
+        showToast("☁️ Cuenta sincronizada");
+      }
+    } catch(e) {
+      showToast("⚠️ Error de sincronización", "warn");
     }
     setSyncing(false);
   };
