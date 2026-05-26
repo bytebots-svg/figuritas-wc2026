@@ -16,68 +16,85 @@ const supabase = createClient(SUPABASE_URL, SUPABASE_KEY, {
 // Cada selección tiene 18 figuritas (jugadores) según estructura Panini 2026
 // Las secciones especiales tienen conteos según el álbum oficial
 const SECTIONS = [
-  // ESPECIALES — numeración exacta álbum físico
+  // ── ESPECIALES ────────────────────────────────────────────────────────────
   { id: "FWC_ESP", label: "FWC – Especiales (00-4)",    emoji: "🏆", count: 5,  color: "#FFD700", start: 0 },
   { id: "FWC_BAL", label: "FWC – Balón y Países (5-8)", emoji: "⚽", count: 4,  color: "#00E5FF", start: 5 },
   { id: "FWC_HIS", label: "FWC – Historia (9-19)",      emoji: "📜", count: 11, color: "#A78BFA", start: 9 },
-  // GRUPO A
-  { id: "MEX", label: "México",           emoji: "🇲🇽", count: 20, color: "#00B94A" },
-  { id: "USA", label: "Estados Unidos",   emoji: "🇺🇸", count: 20, color: "#3B82F6" },
-  { id: "CAN", label: "Canadá",           emoji: "🇨🇦", count: 20, color: "#EF4444" },
-  // CONMEBOL
-  { id: "ARG", label: "Argentina",        emoji: "🇦🇷", count: 20, color: "#74C0FC" },
-  { id: "BRA", label: "Brasil",           emoji: "🇧🇷", count: 20, color: "#F9E04B" },
-  { id: "COL", label: "Colombia",         emoji: "🇨🇴", count: 20, color: "#FFD700" },
-  { id: "URU", label: "Uruguay",          emoji: "🇺🇾", count: 20, color: "#75AADB" },
-  { id: "ECU", label: "Ecuador",          emoji: "🇪🇨", count: 20, color: "#FFD100" },
-  { id: "PAR", label: "Paraguay",         emoji: "🇵🇾", count: 20, color: "#D52B1E" },
-  { id: "BOL", label: "Bolivia",          emoji: "🇧🇴", count: 20, color: "#D52B1E" },
-  { id: "VEN", label: "Venezuela",        emoji: "🇻🇪", count: 20, color: "#CF0A2C" },
-  { id: "CHI", label: "Chile",            emoji: "🇨🇱", count: 20, color: "#D52B1E" },
-  // UEFA
-  { id: "ESP", label: "España",           emoji: "🇪🇸", count: 20, color: "#C0392B" },
-  { id: "FRA", label: "Francia",          emoji: "🇫🇷", count: 20, color: "#1A5276" },
-  { id: "ALE", label: "Alemania",         emoji: "🇩🇪", count: 20, color: "#AAAAAA" },
-  { id: "POR", label: "Portugal",         emoji: "🇵🇹", count: 20, color: "#006600" },
-  { id: "ING", label: "Inglaterra",       emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", count: 20, color: "#CF142B" },
-  { id: "NED", label: "Países Bajos",     emoji: "🇳🇱", count: 20, color: "#FF6600" },
-  { id: "BEL", label: "Bélgica",          emoji: "🇧🇪", count: 20, color: "#E30614" },
-  { id: "CRO", label: "Croacia",          emoji: "🇭🇷", count: 20, color: "#FF0000" },
-  { id: "DAN", label: "Dinamarca",        emoji: "🇩🇰", count: 20, color: "#C60C30" },
-  { id: "AUT", label: "Austria",          emoji: "🇦🇹", count: 20, color: "#ED2939" },
-  { id: "SCO", label: "Escocia",          emoji: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", count: 20, color: "#003087" },
-  { id: "SUI", label: "Suiza",            emoji: "🇨🇭", count: 20, color: "#FF0000" },
-  { id: "HUN", label: "Hungría",          emoji: "🇭🇺", count: 20, color: "#CE2939" },
-  { id: "TUR", label: "Turquía",          emoji: "🇹🇷", count: 20, color: "#E30A17" },
-  { id: "SRB", label: "Serbia",           emoji: "🇷🇸", count: 20, color: "#C6363C" },
-  { id: "ROU", label: "Rumania",          emoji: "🇷🇴", count: 20, color: "#002B7F" },
-  { id: "SVK", label: "Eslovaquia",       emoji: "🇸🇰", count: 20, color: "#0B4EA2" },
-  { id: "CZE", label: "Chequia",          emoji: "🇨🇿", count: 20, color: "#D7141A" },
-  { id: "GEO", label: "Georgia",          emoji: "🇬🇪", count: 20, color: "#DA291C" },
-  { id: "ALB", label: "Albania",          emoji: "🇦🇱", count: 20, color: "#E41E20" },
-  // CAF (África)
-  { id: "MAR", label: "Marruecos",        emoji: "🇲🇦", count: 20, color: "#C1272D" },
-  { id: "SEN", label: "Senegal",          emoji: "🇸🇳", count: 20, color: "#00853F" },
-  { id: "RSA", label: "Sudáfrica",        emoji: "🇿🇦", count: 20, color: "#007A4D" },
-  { id: "EGY", label: "Egipto",           emoji: "🇪🇬", count: 20, color: "#CE1126" },
-  { id: "NGA", label: "Nigeria",          emoji: "🇳🇬", count: 20, color: "#008751" },
-  { id: "CMR", label: "Camerún",          emoji: "🇨🇲", count: 20, color: "#007A5E" },
-  // AFC (Asia)
-  { id: "JPN", label: "Japón",            emoji: "🇯🇵", count: 20, color: "#BC002D" },
-  { id: "KOR", label: "Rep. de Corea",    emoji: "🇰🇷", count: 20, color: "#CD2E3A" },
-  { id: "SAU", label: "Arabia Saudita",   emoji: "🇸🇦", count: 20, color: "#006C35" },
-  { id: "IRN", label: "Irán",             emoji: "🇮🇷", count: 20, color: "#239F40" },
-  { id: "AUS", label: "Australia",        emoji: "🇦🇺", count: 20, color: "#00008B" },
-  { id: "UZB", label: "Uzbekistán",       emoji: "🇺🇿", count: 20, color: "#1EB53A" },
-  // CONCACAF adicional
-  { id: "PAN", label: "Panamá",           emoji: "🇵🇦", count: 20, color: "#DA121A" },
-  { id: "JAM", label: "Jamaica",          emoji: "🇯🇲", count: 20, color: "#FED100" },
-  { id: "HON", label: "Honduras",         emoji: "🇭🇳", count: 20, color: "#0073CF" },
-  { id: "CRC", label: "Costa Rica",       emoji: "🇨🇷", count: 20, color: "#002B7F" },
-  // OFC
-  { id: "NZL", label: "Nueva Zelanda",    emoji: "🇳🇿", count: 20, color: "#00247D" },
-  // COCA-COLA — al final del álbum
-  { id: "COCA", label: "Coca-Cola",              emoji: "🥤", count: 14, color: "#FF0000" },
+
+  // ── GRUPO A ───────────────────────────────────────────────────────────────
+  { id: "MEX", label: "México",            emoji: "🇲🇽", count: 20, color: "#00B94A", group: "A" },
+  { id: "RSA", label: "Sudáfrica",         emoji: "🇿🇦", count: 20, color: "#007A4D", group: "A" },
+  { id: "KOR", label: "Corea del Sur",     emoji: "🇰🇷", count: 20, color: "#CD2E3A", group: "A" },
+  { id: "CZE", label: "Chequia",           emoji: "🇨🇿", count: 20, color: "#D7141A", group: "A" },
+
+  // ── GRUPO B ───────────────────────────────────────────────────────────────
+  { id: "CAN", label: "Canadá",            emoji: "🇨🇦", count: 20, color: "#EF4444", group: "B" },
+  { id: "BIH", label: "Bosnia-Herzegovina",emoji: "🇧🇦", count: 20, color: "#003DA5", group: "B" },
+  { id: "QAT", label: "Catar",             emoji: "🇶🇦", count: 20, color: "#8D1B3D", group: "B" },
+  { id: "SUI", label: "Suiza",             emoji: "🇨🇭", count: 20, color: "#FF0000", group: "B" },
+
+  // ── GRUPO C ───────────────────────────────────────────────────────────────
+  { id: "BRA", label: "Brasil",            emoji: "🇧🇷", count: 20, color: "#F9E04B", group: "C" },
+  { id: "MAR", label: "Marruecos",         emoji: "🇲🇦", count: 20, color: "#C1272D", group: "C" },
+  { id: "HAI", label: "Haití",             emoji: "🇭🇹", count: 20, color: "#00209F", group: "C" },
+  { id: "SCO", label: "Escocia",           emoji: "🏴󠁧󠁢󠁳󠁣󠁴󠁿", count: 20, color: "#003087", group: "C" },
+
+  // ── GRUPO D ───────────────────────────────────────────────────────────────
+  { id: "USA", label: "Estados Unidos",    emoji: "🇺🇸", count: 20, color: "#3B82F6", group: "D" },
+  { id: "PAR", label: "Paraguay",          emoji: "🇵🇾", count: 20, color: "#D52B1E", group: "D" },
+  { id: "AUS", label: "Australia",         emoji: "🇦🇺", count: 20, color: "#00008B", group: "D" },
+  { id: "TUR", label: "Türkiye",           emoji: "🇹🇷", count: 20, color: "#E30A17", group: "D" },
+
+  // ── GRUPO E ───────────────────────────────────────────────────────────────
+  { id: "ALE", label: "Alemania",          emoji: "🇩🇪", count: 20, color: "#AAAAAA", group: "E" },
+  { id: "CUW", label: "Curazao",           emoji: "🇨🇼", count: 20, color: "#003DA5", group: "E" },
+  { id: "CIV", label: "Côte d'Ivoire",     emoji: "🇨🇮", count: 20, color: "#F77F00", group: "E" },
+  { id: "ECU", label: "Ecuador",           emoji: "🇪🇨", count: 20, color: "#FFD100", group: "E" },
+
+  // ── GRUPO F ───────────────────────────────────────────────────────────────
+  { id: "NED", label: "Países Bajos",      emoji: "🇳🇱", count: 20, color: "#FF6600", group: "F" },
+  { id: "JPN", label: "Japón",             emoji: "🇯🇵", count: 20, color: "#BC002D", group: "F" },
+  { id: "SWE", label: "Suecia",            emoji: "🇸🇪", count: 20, color: "#006AA7", group: "F" },
+  { id: "TUN", label: "Túnez",             emoji: "🇹🇳", count: 20, color: "#E70013", group: "F" },
+
+  // ── GRUPO G ───────────────────────────────────────────────────────────────
+  { id: "BEL", label: "Bélgica",           emoji: "🇧🇪", count: 20, color: "#E30614", group: "G" },
+  { id: "EGY", label: "Egipto",            emoji: "🇪🇬", count: 20, color: "#CE1126", group: "G" },
+  { id: "IRN", label: "Irán",              emoji: "🇮🇷", count: 20, color: "#239F40", group: "G" },
+  { id: "NZL", label: "Nueva Zelanda",     emoji: "🇳🇿", count: 20, color: "#00247D", group: "G" },
+
+  // ── GRUPO H ───────────────────────────────────────────────────────────────
+  { id: "ESP", label: "España",            emoji: "🇪🇸", count: 20, color: "#C0392B", group: "H" },
+  { id: "CPV", label: "Cabo Verde",        emoji: "🇨🇻", count: 20, color: "#003893", group: "H" },
+  { id: "SAU", label: "Arabia Saudita",    emoji: "🇸🇦", count: 20, color: "#006C35", group: "H" },
+  { id: "URU", label: "Uruguay",           emoji: "🇺🇾", count: 20, color: "#75AADB", group: "H" },
+
+  // ── GRUPO I ───────────────────────────────────────────────────────────────
+  { id: "FRA", label: "Francia",           emoji: "🇫🇷", count: 20, color: "#1A5276", group: "I" },
+  { id: "SEN", label: "Senegal",           emoji: "🇸🇳", count: 20, color: "#00853F", group: "I" },
+  { id: "IRQ", label: "Irak",              emoji: "🇮🇶", count: 20, color: "#007A3D", group: "I" },
+  { id: "NOR", label: "Noruega",           emoji: "🇳🇴", count: 20, color: "#EF2B2D", group: "I" },
+
+  // ── GRUPO J ───────────────────────────────────────────────────────────────
+  { id: "ARG", label: "Argentina",         emoji: "🇦🇷", count: 20, color: "#74C0FC", group: "J" },
+  { id: "ALG", label: "Argelia",           emoji: "🇩🇿", count: 20, color: "#006233", group: "J" },
+  { id: "AUT", label: "Austria",           emoji: "🇦🇹", count: 20, color: "#ED2939", group: "J" },
+  { id: "JOR", label: "Jordania",          emoji: "🇯🇴", count: 20, color: "#007A3D", group: "J" },
+
+  // ── GRUPO K ───────────────────────────────────────────────────────────────
+  { id: "POR", label: "Portugal",          emoji: "🇵🇹", count: 20, color: "#006600", group: "K" },
+  { id: "COD", label: "Congo DR",          emoji: "🇨🇩", count: 20, color: "#007FFF", group: "K" },
+  { id: "UZB", label: "Uzbekistán",        emoji: "🇺🇿", count: 20, color: "#1EB53A", group: "K" },
+  { id: "COL", label: "Colombia",          emoji: "🇨🇴", count: 20, color: "#FFD700", group: "K" },
+
+  // ── GRUPO L ───────────────────────────────────────────────────────────────
+  { id: "ING", label: "Inglaterra",        emoji: "🏴󠁧󠁢󠁥󠁮󠁧󠁿", count: 20, color: "#CF142B", group: "L" },
+  { id: "CRO", label: "Croacia",           emoji: "🇭🇷", count: 20, color: "#FF0000", group: "L" },
+  { id: "GHA", label: "Ghana",             emoji: "🇬🇭", count: 20, color: "#006B3F", group: "L" },
+  { id: "PAN", label: "Panamá",            emoji: "🇵🇦", count: 20, color: "#DA121A", group: "L" },
+
+  // ── COCA-COLA ─────────────────────────────────────────────────────────────
+  { id: "COCA", label: "Coca-Cola",        emoji: "🥤", count: 14, color: "#FF0000" },
 ];
 
 // ── LOGROS (hitos automáticos por cantidad) ───────────────────────────────────
